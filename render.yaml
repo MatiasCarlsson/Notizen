@@ -26,10 +26,8 @@ services:
         sync: false # completá con la URL de notizen-frontend
 
   # ─── Frontend (React + Vite, SPA estática) ──────────────────────────
-  - type: web
+  - type: static
     name: notizen-frontend
-    runtime: static
-    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
