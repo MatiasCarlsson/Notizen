@@ -28,7 +28,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ allCategories, onSubmit, onC
     });
   };
 
-  const handleSubmit = async (e: React.SubmitEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) {
       setError("El título y el contenido son obligatorios.");

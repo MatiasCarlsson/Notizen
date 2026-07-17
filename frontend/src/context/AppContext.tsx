@@ -1,5 +1,5 @@
 ﻿import React, { createContext, useState, useEffect } from "react";
-import type { Note } from "../types/note.types";
+import type { Note, PageMeta } from "../types/note.types";
 import type { CreateNotePayload, UpdateNotePayload } from "../types/note.types";
 import type { CreateCategoryPayload } from "../types/category.types";
 import { useNotes } from "../hooks/useNotes";
@@ -10,6 +10,9 @@ export interface AppContextValue {
   // Estado
   notes: Note[];
   notesLoading: boolean;
+  notesLoadingMore: boolean;
+  notesHasMore: boolean;
+  notesMeta: PageMeta | null;
   selectedNote: Note | null;
   activeFilter: string;
 
@@ -27,6 +30,7 @@ export interface AppContextValue {
   deleteNote: (id: string) => Promise<void>;
   setArchiveStatus: (id: string, isArchived: boolean) => Promise<void>;
   refreshNotes: () => void;
+  loadMoreNotes: () => void;
 
   // Acciones de categorí­as
   createCategory: (payload: CreateCategoryPayload) => Promise<void>;
@@ -54,7 +58,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const {
     notes,
     loading: notesLoading,
+    loadingMore: notesLoadingMore,
+    hasMore: notesHasMore,
+    meta: notesMeta,
     refresh: refreshNotes,
+    loadMore,
     createNote,
     updateNote,
     deleteNote,
@@ -111,6 +119,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         notes,
         notesLoading,
+        notesLoadingMore,
+        notesHasMore,
+        notesMeta,
         selectedNote,
         activeFilter,
         categories,
@@ -124,6 +135,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteNote: handleDelete,
         setArchiveStatus: handleArchive,
         refreshNotes,
+        loadMoreNotes: loadMore,
         createCategory,
         deleteCategory,
         addCategoryToNote: handleAddCategory,

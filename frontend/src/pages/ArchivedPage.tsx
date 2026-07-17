@@ -13,6 +13,9 @@ export const ArchivedPage: React.FC<ArchivedPageProps> = ({ onFilterChange }) =>
   const {
     notes,
     notesLoading,
+    notesLoadingMore,
+    notesMeta,
+    loadMoreNotes,
     selectedNote,
     activeFilter,
     categories,
@@ -38,9 +41,12 @@ export const ArchivedPage: React.FC<ArchivedPageProps> = ({ onFilterChange }) =>
       <NoteList
         notes={notes}
         loading={notesLoading}
+        loadingMore={notesLoadingMore}
+        meta={notesMeta}
         onSelect={setSelectedNote}
         onArchive={setArchiveStatus}
         onDelete={deleteNote}
+        onLoadMore={loadMoreNotes}
       />
 
       {selectedNote && (

@@ -4,9 +4,11 @@ import type {
   CreateCategoryPayload,
   UpdateCategoryPayload,
 } from "../types/category.types";
+import type { Paginated, PageOptions } from "../types/note.types";
 
 export const categoriesApi = {
-  getAll: () => api.get<Category[]>("/categories").then((r) => r.data),
+  getAll: (options: PageOptions = {}) =>
+    api.get<Paginated<Category>>("/categories", { params: options }).then((r) => r.data),
 
   getById: (id: string) => api.get<Category>(`/categories/${id}`).then((r) => r.data),
 

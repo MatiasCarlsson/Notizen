@@ -3,37 +3,33 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model categories {
   name            String            @unique
   createdAt       DateTime          @default(now())
-  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  color           String?           @db.VarChar
+  id              String            @id @default(uuid())
+  color           String?
   note_categories note_categories[]
 }
 
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model note_categories {
-  noteId     String     @db.Uuid
-  categoryId String     @db.Uuid
+  noteId     String
+  categoryId String
   categories categories @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   notes      notes      @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
   @@id([noteId, categoryId])
 }
 
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model notes {
   title           String
   content         String
   isArchived      Boolean           @default(false)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @default(now()) @updatedAt
-  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id              String            @id @default(uuid())
   note_categories note_categories[]
 }

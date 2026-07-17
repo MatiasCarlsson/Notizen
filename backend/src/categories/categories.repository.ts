@@ -1,14 +1,31 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { categories } from '@prisma/client';
+import { Prisma, categories } from '@prisma/client';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { PageOptionsDto } from '../common/dto/page-options.dto';
 
 @Injectable()
 export class CategoriesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(): Promise<categories[]> {
-    return await this.prisma.categories.findMany();
+  async findAll(options: PageOptionsDto) {
+    const page = options.page ?? 1;
+    const limit = options.limit ?? 20;
+    const where: Prisma.categoriesWhereInput = options.q
+      ? { name: { contains: options.q.trim() } }
+      : {};
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.categories.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.categories.count({ where }),
+    ]);
+
+    return { data, total };
   }
 
   async findById(id: string): Promise<categories | null> {
@@ -52,7 +69,8 @@ export class CategoriesRepository {
 
   async delete(id: string): Promise<categories> {
     const exists = await this.findById(id);
-    if (!exists) throw new Error(`Category ${id} not found`);
+    if (!exists)
+      throw new NotFoundException(`Category with ID ${id} not found`);
     return await this.prisma.categories.delete({ where: { id } });
   }
 }

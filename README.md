@@ -3,7 +3,6 @@
 Aplicación web para gestionar notas con soporte de categorías y filtros. Arquitectura SPA separada en frontend y backend independientes.
 
 ## Características
-
 **_Fase 1_**
 
 - Crear, editar y eliminar notas
@@ -25,7 +24,7 @@ Aplicación web para gestionar notas con soporte de categorías y filtros. Arqui
 | Enrutado      | React Router              | 7            |
 | Backend       | NestJS + TypeScript       | 11 / 5.7     |
 | ORM           | Prisma                    | 6            |
-| Base de datos | PostgreSQL                | ≥ 14         |
+| Base de datos | SQLite (archivo local)    | prisma/dev.db |
 | Runtime       | Node.js                   | ≥ 20.x       |
 
 ## Estructura del repositorio
@@ -45,7 +44,7 @@ Aplicación web para gestionar notas con soporte de categorías y filtros. Arqui
 ### Prerrequisitos
 
 - Node.js ≥ 20.x con npm ≥ 10.x
-- PostgreSQL ≥ 14 corriendo y accesible
+- La base de datos es **SQLite local** (`backend/prisma/dev.db`), no requiere un servidor externo.
 - La API del backend debe ser accesible desde el frontend en `http://localhost:3000/api` (por defecto). Si necesitás cambiar la URL, creá `frontend/.env.local` con `VITE_API_URL=http://tu-host:puerto/api`
 
 ### Opción A — Script automático (Linux / macOS / Git Bash en Windows)
@@ -80,14 +79,10 @@ npm install
 
 # Configurar variables de entorno
 cp .env.example .env
-# Editar .env con las credenciales de PostgreSQL:
-#   DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/notes_db"
-#   DIRECT_URL="postgresql://USER:PASSWORD@localhost:5432/notes_db"
+# El .env usa SQLite por defecto:
+#   DATABASE_URL="file:./dev.db"
 
-# Crear la base de datos (omitir si ya existe)
-psql -U postgres -c "CREATE DATABASE notes_db;"
-
-# Generar cliente Prisma y sincronizar el schema
+# Generar cliente Prisma y crear la base de datos local
 npx prisma generate
 npx prisma db push
 
@@ -97,6 +92,8 @@ npm run start:dev
 
 La API queda disponible en `http://localhost:3000`.  
 Swagger UI en `http://localhost:3000/api/docs`.
+
+> Nota: para borrar todos los datos y empezar limpio, eliminá `backend/prisma/dev.db` y volvé a correr `npx prisma db push`.
 
 ### 2. Frontend
 

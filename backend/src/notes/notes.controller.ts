@@ -20,6 +20,7 @@ import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
 import { ArchiveNoteDto } from './dto/archive-note.dto';
 import { CategoriesService } from '../categories/categories.service';
+import { PageOptionsDto } from '../common/dto/page-options.dto';
 
 @ApiTags('notes')
 @Controller('notes')
@@ -32,23 +33,52 @@ export class NotesController {
   @ApiOperation({
     summary: 'Listar notas activas (filtrar por categoría con ?categoryId=)',
   })
-  @ApiResponse({ status: 200, description: 'Lista de notas activas' })
+  @ApiResponse({ status: 200, description: 'Lista paginada de notas activas' })
   @ApiQuery({
     name: 'categoryId',
     required: false,
     description: 'UUID de la categoría para filtrar',
   })
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Elementos por página',
+  })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Búsqueda en título/contenido',
+  })
   @Get()
-  async findAllActive(@Query('categoryId') categoryId?: string) {
-    if (categoryId) return await this.notesService.findByCategory(categoryId);
-    return await this.notesService.findAllActive();
+  async findAllActive(
+    @Query() options: PageOptionsDto,
+    @Query('categoryId') categoryId?: string,
+  ) {
+    if (categoryId)
+      return await this.notesService.findByCategory(categoryId, options);
+    return await this.notesService.findAllActive(options);
   }
 
   @ApiOperation({ summary: 'Listar notas archivadas' })
-  @ApiResponse({ status: 200, description: 'Lista de notas archivadas' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista paginada de notas archivadas',
+  })
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Elementos por página',
+  })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Búsqueda en título/contenido',
+  })
   @Get('archived')
-  async findAllArchived() {
-    return await this.notesService.findAllArchived();
+  async findAllArchived(@Query() options: PageOptionsDto) {
+    return await this.notesService.findAllArchived(options);
   }
 
   @ApiOperation({ summary: 'Obtener nota por ID' })

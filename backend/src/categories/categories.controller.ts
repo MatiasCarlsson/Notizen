@@ -6,11 +6,19 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { PageOptionsDto } from '../common/dto/page-options.dto';
 
 @ApiTags('categories')
 @Controller('categories')
@@ -18,10 +26,17 @@ export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @ApiOperation({ summary: 'Listar todas las categorias' })
-  @ApiResponse({ status: 200, description: 'Lista de categorias' })
+  @ApiResponse({ status: 200, description: 'Lista paginada de categorias' })
+  @ApiQuery({ name: 'page', required: false, description: 'Número de página' })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Elementos por página',
+  })
+  @ApiQuery({ name: 'q', required: false, description: 'Búsqueda por nombre' })
   @Get()
-  async findAll() {
-    return await this.categoriesService.findAllCategories();
+  async findAll(@Query() options: PageOptionsDto) {
+    return await this.categoriesService.findAllCategories(options);
   }
 
   @ApiOperation({ summary: 'Obtener categoria por ID' })

@@ -4,19 +4,30 @@ import type {
   CreateNotePayload,
   UpdateNotePayload,
   ArchiveNotePayload,
+  Paginated,
+  PageOptions,
 } from "../types/note.types";
 
 export const notesApi = {
-  getActive: () => api.get<Note[]>("/notes").then((r) => r.data),
+  getActive: (options: PageOptions = {}) =>
+    api.get<Paginated<Note>>("/notes", { params: options }).then((r) => r.data),
 
-  getArchived: () => api.get<Note[]>("/notes/archived").then((r) => r.data),
+  getArchived: (options: PageOptions = {}) =>
+    api
+      .get<Paginated<Note>>("/notes/archived", { params: options })
+      .then((r) => r.data),
 
   getById: (id: string) => api.get<Note>(`/notes/${id}`).then((r) => r.data),
 
-  getByCategory: (categoryId: string) =>
-    api.get<Note[]>(`/notes?categoryId=${categoryId}`).then((r) => r.data),
+  getByCategory: (categoryId: string, options: PageOptions = {}) =>
+    api
+      .get<Paginated<Note>>("/notes", {
+        params: { categoryId, ...options },
+      })
+      .then((r) => r.data),
 
-  create: (payload: CreateNotePayload) => api.post<Note>("/notes", payload).then((r) => r.data),
+  create: (payload: CreateNotePayload) =>
+    api.post<Note>("/notes", payload).then((r) => r.data),
 
   update: (id: string, payload: UpdateNotePayload) =>
     api.patch<Note>(`/notes/${id}`, payload).then((r) => r.data),

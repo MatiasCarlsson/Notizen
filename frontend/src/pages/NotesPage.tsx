@@ -29,6 +29,9 @@ export const NotesPage: React.FC<NotesPageProps> = ({ onFilterChange }) => {
   const {
     notes,
     notesLoading,
+    notesLoadingMore,
+    notesMeta,
+    loadMoreNotes,
     selectedNote,
     activeFilter,
     categories,
@@ -87,9 +90,12 @@ export const NotesPage: React.FC<NotesPageProps> = ({ onFilterChange }) => {
       <NoteList
         notes={notes}
         loading={notesLoading}
+        loadingMore={notesLoadingMore}
+        meta={notesMeta}
         onSelect={setSelectedNote}
         onArchive={setArchiveStatus}
         onDelete={deleteNote}
+        onLoadMore={loadMoreNotes}
         onNewNote={() => setIsFormOpen(true)}
       />
 

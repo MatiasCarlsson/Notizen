@@ -3,13 +3,25 @@ import { CategoriesRepository } from './categories.repository';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { categories } from '@prisma/client';
+import {
+  PageOptionsDto,
+  PaginatedResult,
+} from '../common/dto/page-options.dto';
 
 @Injectable()
 export class CategoriesService {
   constructor(private readonly categoriesRepository: CategoriesRepository) {}
 
-  async findAllCategories() {
-    return await this.categoriesRepository.findAll();
+  async findAllCategories(
+    options: PageOptionsDto,
+  ): Promise<PaginatedResult<categories>> {
+    const { data, total } = await this.categoriesRepository.findAll(options);
+    const page = options.page ?? 1;
+    const limit = options.limit ?? 20;
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async findOne(id: string) {

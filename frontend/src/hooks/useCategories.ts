@@ -16,7 +16,7 @@ export const useCategories = () => {
     setError(null);
     try {
       const data = await categoriesApi.getAll();
-      setCategories(data);
+      setCategories(data.data);
     } catch {
       setError("Error al cargar las categorías.");
     } finally {

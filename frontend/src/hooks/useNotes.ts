@@ -1,44 +1,71 @@
 import { useState, useCallback, useEffect } from "react";
-import type { Note, CreateNotePayload, UpdateNotePayload } from "../types/note.types";
+import type {
+  Note,
+  CreateNotePayload,
+  UpdateNotePayload,
+  PageMeta,
+  PageOptions,
+} from "../types/note.types";
 import { notesApi } from "../api/notes.api";
 
 type Filter = "active" | "archived" | string; // string = categoryId
 
+const DEFAULT_LIMIT = 20;
+
 export const useNotes = (filter: Filter = "active") => {
   const [notes, setNotes] = useState<Note[]>([]);
+  const [meta, setMeta] = useState<PageMeta | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Carga notas según el filtro activo
-  const fetchNotes = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      let data: Note[];
-      if (filter === "archived") {
-        data = await notesApi.getArchived();
-      } else if (filter === "active") {
-        data = await notesApi.getActive();
-      } else {
-        // filter es un categoryId
-        data = await notesApi.getByCategory(filter);
+  const fetchPage = useCallback(
+    async (opts: PageOptions & { page: number }, append: boolean) => {
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+      setError(null);
+      try {
+        const res =
+          filter === "archived"
+            ? await notesApi.getArchived(opts)
+            : typeof filter === "string" && filter !== "active"
+              ? await notesApi.getByCategory(filter, opts)
+              : await notesApi.getActive(opts);
+
+        setNotes((prev) => (append ? [...prev, ...res.data] : res.data));
+        setMeta(res.meta);
+      } catch {
+        setError("Error al cargar las notas.");
+      } finally {
+        if (append) {
+          setLoadingMore(false);
+        } else {
+          setLoading(false);
+        }
       }
-      setNotes(data);
-    } catch {
-      setError("Error al cargar las notas.");
-    } finally {
-      setLoading(false);
-    }
-  }, [filter]);
+    },
+    [filter],
+  );
 
   useEffect(() => {
-    fetchNotes();
-  }, [fetchNotes]);
+    void fetchPage({ page: 1, limit: DEFAULT_LIMIT }, false);
+  }, [fetchPage]);
+
+  const loadMore = useCallback(() => {
+    if (!meta || meta.page >= meta.totalPages) return;
+    const next = meta.page + 1;
+    void fetchPage({ page: next, limit: DEFAULT_LIMIT }, true);
+  }, [meta, fetchPage]);
+
+  const hasMore = !!meta && meta.page < meta.totalPages;
 
   const createNote = async (payload: CreateNotePayload): Promise<Note> => {
     const newNote = await notesApi.create(payload);
     // Agrega la nueva nota al inicio de la lista sin recargar todo
     setNotes((prev) => [newNote, ...prev]);
+    setMeta((prev) =>
+      prev ? { ...prev, total: prev.total + 1 } : prev,
+    );
     return newNote;
   };
 
@@ -52,12 +79,14 @@ export const useNotes = (filter: Filter = "active") => {
   const deleteNote = async (id: string) => {
     await notesApi.delete(id);
     setNotes((prev) => prev.filter((n) => n.id !== id));
+    setMeta((prev) => (prev ? { ...prev, total: prev.total - 1 } : prev));
   };
 
   const setArchiveStatus = async (id: string, isArchived: boolean) => {
     await notesApi.setArchiveStatus(id, { isArchived });
     // Si el filtro es 'active' o 'archived', la nota desaparece de la lista actual
     setNotes((prev) => prev.filter((n) => n.id !== id));
+    setMeta((prev) => (prev ? { ...prev, total: prev.total - 1 } : prev));
   };
 
   // Actualiza una única nota en la lista sin recargar todo (útil para actualizaciones optimistas)
@@ -67,9 +96,13 @@ export const useNotes = (filter: Filter = "active") => {
 
   return {
     notes,
+    meta,
     loading,
+    loadingMore,
     error,
-    refresh: fetchNotes,
+    hasMore,
+    refresh: () => fetchPage({ page: 1, limit: DEFAULT_LIMIT }, false),
+    loadMore,
     createNote,
     updateNote,
     deleteNote,

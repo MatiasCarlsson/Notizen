@@ -14,12 +14,7 @@ export interface NoteCategory {
   categories: Category;
 }
 
-export interface Category {
-  id: string;
-  name: string;
-  color: string | null;
-  createdAt: string;
-}
+import type { Category } from "./category.types";
 
 export interface CreateNotePayload {
   title: string;
@@ -33,4 +28,22 @@ export interface UpdateNotePayload {
 
 export interface ArchiveNotePayload {
   isArchived: boolean;
+}
+
+export interface PageMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface Paginated<T> {
+  data: T[];
+  meta: PageMeta;
+}
+
+export interface PageOptions {
+  page?: number;
+  limit?: number;
+  q?: string;
 }

@@ -2,17 +2,38 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { NotesRepository } from './notes.repository';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
+import {
+  PageOptionsDto,
+  PaginatedResult,
+} from '../common/dto/page-options.dto';
+import { notes } from '@prisma/client';
 
 @Injectable()
 export class NotesService {
   constructor(private readonly notesRepository: NotesRepository) {}
 
-  async findAllActive() {
-    return await this.notesRepository.findAll(false);
+  async findAllActive(
+    options: PageOptionsDto,
+  ): Promise<PaginatedResult<notes>> {
+    const { data, total } = await this.notesRepository.findAll(false, options);
+    const page = options.page ?? 1;
+    const limit = options.limit ?? 20;
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
-  async findAllArchived() {
-    return await this.notesRepository.findAll(true);
+  async findAllArchived(
+    options: PageOptionsDto,
+  ): Promise<PaginatedResult<notes>> {
+    const { data, total } = await this.notesRepository.findAll(true, options);
+    const page = options.page ?? 1;
+    const limit = options.limit ?? 20;
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async findOne(id: string) {
@@ -21,8 +42,20 @@ export class NotesService {
     return note;
   }
 
-  async findByCategory(categoryId: string) {
-    return this.notesRepository.findByCategory(categoryId);
+  async findByCategory(
+    categoryId: string,
+    options: PageOptionsDto,
+  ): Promise<PaginatedResult<notes>> {
+    const { data, total } = await this.notesRepository.findByCategory(
+      categoryId,
+      options,
+    );
+    const page = options.page ?? 1;
+    const limit = options.limit ?? 20;
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   create(dto: CreateNoteDto) {
@@ -30,8 +63,7 @@ export class NotesService {
   }
 
   async update(id: string, dto: UpdateNoteDto) {
-    const note = await this.findOne(id);
-    if (!note) throw new NotFoundException(`Note with ID ${id} not found`);
+    await this.findOne(id);
     return this.notesRepository.update(id, dto);
   }
 

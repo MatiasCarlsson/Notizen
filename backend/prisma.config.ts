@@ -10,7 +10,6 @@ export default defineConfig({
   },
   engine: 'classic',
   datasource: {
-    url: env('DATABASE_URL'), // pooler pgBouncer → queries en runtime
-    directUrl: env('DIRECT_URL'), // conexión directa → migraciones y db pull
+    url: env('DATABASE_URL'),
   },
 });
