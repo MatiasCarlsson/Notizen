@@ -10,7 +10,7 @@ services:
     region: oregon # cambia a la región más cercana
     plan: free
     rootDir: backend
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /api
     envVars:
@@ -30,7 +30,7 @@ services:
     name: notizen-frontend
     runtime: static
     rootDir: frontend
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     staticPublishPath: ./dist
     # SPA fallback: cualquier ruta no-existente sirve index.html
     routes:
