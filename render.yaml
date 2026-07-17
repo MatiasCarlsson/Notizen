@@ -1,0 +1,49 @@
+# Render deployment config for Notizen
+# Docs: https://render.com/docs/infrastructures-as-code
+# Deploy: connect this repo in Render and select "render.yaml" (Blueprint).
+
+services:
+  # ─── Backend (NestJS + SQLite on Render Disk) ───────────────────────
+  - type: web
+    name: notizen-backend
+    runtime: node
+    region: oregon # cambia a la región más cercana
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      # SQLite sobre Render Disk (ruta absoluta del disco montado)
+      - key: DATABASE_URL
+        value: file:/var/data/dev.db
+      # URL del frontend para CORS (ajustá al dominio real de Render)
+      - key: FRONTEND_URL
+        sync: false # completá con la URL de notizen-frontend
+    # Disco persistente para que la base de datos sobreviva a reinicios
+    disk:
+      name: notizen-data
+      mountPath: /var/data
+      sizeGB: 1
+
+  # ─── Frontend (React + Vite, SPA estática) ──────────────────────────
+  - type: web
+    name: notizen-frontend
+    runtime: static
+    region: oregon
+    plan: free
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    # SPA fallback: cualquier ruta no-existente sirve index.html
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false # completá con https://notizen-backend.onrender.com/api
