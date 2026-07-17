@@ -11,8 +11,14 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   // CORS
+  const raw = (process.env.FRONTEND_URL ?? '*').replace(/['"]/g, '').trim();
+  const allowedOrigins = raw
+    .split(',')
+    .map((o) => o.trim())
+    .filter((o) => /^https?:\/\//.test(o) || o === '*');
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL ?? '*',
+    origin: allowedOrigins.length ? allowedOrigins : '*',
     credentials: true,
   });
 
