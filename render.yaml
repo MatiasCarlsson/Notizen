@@ -10,7 +10,7 @@ services:
     region: oregon # cambia a la región más cercana
     plan: free
     rootDir: backend
-    buildCommand: npm install --include=dev && npm run build
+    buildCommand: export DATABASE_URL="file:./dev.db" && npm install --include=dev && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /api
     envVars:
