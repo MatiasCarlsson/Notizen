@@ -15,7 +15,7 @@
  *   Wrappea NotesPage y ArchivedPage.
  */
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import type { Category } from "../../types/category.types";
 
@@ -38,6 +38,17 @@ export const Layout: React.FC<LayoutProps> = ({
   onDeleteCategory,
   onNewNote,
 }) => {
+  const [showFreeNotice, setShowFreeNotice] = useState(false);
+
+  useEffect(() => {
+    setShowFreeNotice(localStorage.getItem("notizen_hide_free_notice") !== "1");
+  }, []);
+
+  const dismissFreeNotice = () => {
+    localStorage.setItem("notizen_hide_free_notice", "1");
+    setShowFreeNotice(false);
+  };
+
   return (
     <div className="flex min-h-screen bg-(--bg-primary)">
       {/* Sidebar fijo a la izquierda */}
@@ -50,8 +61,29 @@ export const Layout: React.FC<LayoutProps> = ({
         onNewNote={onNewNote}
       />
 
-      {/* Ãrea de contenido principal */}
+      {/* Área de contenido principal */}
       <main className="flex-1 flex flex-col min-h-screen overflow-y-auto bg-(--bg-primary)">
+        {showFreeNotice && (
+          <div
+            className="flex items-center gap-2 px-4 py-2 text-xs text-(--text-secondary) bg-(--bg-hover) border-b border-(--border-subtle)"
+            title="Notizen se ejecuta en servicios gratuitos de Render. La base de datos y el servidor pueden entrar en suspensión tras periodos de inactividad, lo que puede causar latencia en la primera carga."
+          >
+            <span aria-hidden="true">ℹ️</span>
+            <span>
+              Estás usando la versión gratuita de Notizen. El servidor y la base
+              de datos pueden tardar unos segundos en reactivarse tras estar
+              inactivos (latencia en la primera carga).
+            </span>
+            <button
+              onClick={dismissFreeNotice}
+              className="ml-auto px-2 py-0.5 rounded text-(--text-secondary) hover:bg-(--border-subtle) cursor-pointer"
+              title="Ocultar aviso"
+              aria-label="Ocultar aviso"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         {children}
       </main>
     </div>

@@ -2,15 +2,23 @@
 # Docs: https://render.com/docs/infrastructures-as-code
 # Deploy: connect this repo in Render and select "render.yaml" (Blueprint).
 
+databases:
+  # ─── Postgres gestionado (persistente, free tier) ──────────────────
+  - name: notizen-db
+    databaseName: notizen
+    user: notizen
+    plan: free
+    region: oregon # debe coincidir con el backend
+
 services:
-  # ─── Backend (NestJS + SQLite local) ────────────────────────────────
+  # ─── Backend (NestJS + Postgres) ───────────────────────────────────
   - type: web
     name: notizen-backend
     runtime: node
     region: oregon # cambia a la región más cercana
     plan: free
     rootDir: backend
-    buildCommand: export DATABASE_URL="file:./dev.db" && npm install --include=dev && npm run build
+    buildCommand: export DATABASE_URL="postgresql://notizen:notizen@localhost:5432/notizen" && npm install --include=dev && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /api
     envVars:
@@ -18,9 +26,11 @@ services:
         value: production
       - key: PORT
         value: 3000
-      # SQLite local (free tier: sin Render Disk, la DB es efímera)
+      # Postgres gestionado por Render (se inyecta automáticamente)
       - key: DATABASE_URL
-        value: file:./dev.db
+        fromDatabase:
+          name: notizen-db
+          property: connectionString
       # URL del frontend para CORS (ajustá al dominio real de Render)
       - key: FRONTEND_URL
         sync: false # completá con la URL de notizen-frontend
