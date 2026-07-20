@@ -2,35 +2,30 @@
 # Docs: https://render.com/docs/infrastructures-as-code
 # Deploy: connect this repo in Render and select "render.yaml" (Blueprint).
 
-databases:
-  # ─── Postgres gestionado (persistente, free tier) ──────────────────
-  - name: notizen-db
-    databaseName: notizen
-    user: notizen
-    plan: free
-    region: oregon # debe coincidir con el backend
-
 services:
-  # ─── Backend (NestJS + Postgres) ───────────────────────────────────
+  # ─── Backend (NestJS + Postgres externo, ej. Supabase) ────────────
   - type: web
     name: notizen-backend
     runtime: node
     region: oregon # cambia a la región más cercana
     plan: free
     rootDir: backend
-    buildCommand: export DATABASE_URL="postgresql://notizen:notizen@localhost:5432/notizen" && npm install --include=dev && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm run start:prod
-    healthCheckPath: /api
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3000
-      # Postgres gestionado por Render (se inyecta automáticamente)
+      # Postgres externo (Supabase). Completá las URIs en el dashboard de Render.
+      # DATABASE_URL: pooler transaction-mode (6543, ?pgbouncer=true) para queries en runtime.
+      # DIRECT_URL: conexión directa (5432) para `prisma db push`/migraciones.
+      # A ambas agregales &sslmode=require (Supabase exige SSL).
       - key: DATABASE_URL
-        fromDatabase:
-          name: notizen-db
-          property: connectionString
+        sync: false # pegá aquí la connection string transaction-pooler de Supabase
+      - key: DIRECT_URL
+        sync: false # pegá aquí la connection string directa (session) de Supabase
       # URL del frontend para CORS (ajustá al dominio real de Render)
       - key: FRONTEND_URL
         sync: false # completá con la URL de notizen-frontend
