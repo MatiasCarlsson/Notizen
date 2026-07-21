@@ -38,6 +38,8 @@ export const NoteForm: React.FC<NoteFormProps> = ({ allCategories, onSubmit, onC
     setLoading(true);
     try {
       await onSubmit({ title: title.trim(), content: content.trim() }, Array.from(selectedCats));
+    } catch {
+      setError("No se pudo crear la nota. Inténtalo de nuevo.");
     } finally {
       setLoading(false);
     }

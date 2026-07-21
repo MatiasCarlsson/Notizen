@@ -1,10 +1,9 @@
 ﻿import React, { createContext, useState, useEffect } from "react";
-import type { Note, PageMeta } from "../types/note.types";
+import type { Note, PageMeta, NoteCategory } from "../types/note.types";
 import type { CreateNotePayload, UpdateNotePayload } from "../types/note.types";
-import type { CreateCategoryPayload } from "../types/category.types";
+import type { CreateCategoryPayload, Category } from "../types/category.types";
 import { useNotes } from "../hooks/useNotes";
 import { useCategories } from "../hooks/useCategories";
-import { notesApi } from "../api/notes.api";
 
 export interface AppContextValue {
   // Estado
@@ -16,7 +15,7 @@ export interface AppContextValue {
   selectedNote: Note | null;
   activeFilter: string;
 
-  // Categorí­as
+  // Categorías
   categories: ReturnType<typeof useCategories>["categories"];
   categoriesLoading: boolean;
   theme: string;
@@ -32,7 +31,7 @@ export interface AppContextValue {
   refreshNotes: () => void;
   loadMoreNotes: () => void;
 
-  // Acciones de categorí­as
+  // Acciones de categorías
   createCategory: (payload: CreateCategoryPayload) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   addCategoryToNote: (noteId: string, categoryId: string) => Promise<void>;
@@ -41,6 +40,12 @@ export interface AppContextValue {
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const AppContext = createContext<AppContextValue | null>(null);
+
+const buildNoteCategory = (noteId: string, category: Category): NoteCategory => ({
+  noteId,
+  categoryId: category.id,
+  categories: category,
+});
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<string>(() => localStorage.getItem("theme") || "dark");
@@ -81,37 +86,91 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Al archivar/desarchivar, deseleccionar la nota si estaba abierta
   const handleArchive = async (id: string, isArchived: boolean) => {
-    await setArchiveStatus(id, isArchived);
-    if (selectedNote?.id === id) setSelectedNote(null);
+    try {
+      await setArchiveStatus(id, isArchived);
+      if (selectedNote?.id === id) setSelectedNote(null);
+    } catch {
+      // Error ya rollback en useNotes
+    }
   };
 
   // Al eliminar, deseleccionar si estaba abierta
   const handleDelete = async (id: string) => {
-    await deleteNote(id);
-    if (selectedNote?.id === id) setSelectedNote(null);
+    try {
+      await deleteNote(id);
+      if (selectedNote?.id === id) setSelectedNote(null);
+    } catch {
+      // Error ya rollback en useNotes
+    }
   };
 
   const handleUpdate = async (id: string, payload: UpdateNotePayload): Promise<Note> => {
-    // updateNote ya retorna la nota completa, reutilizamos sin llamada extra
     const updated = await updateNote(id, payload);
     if (selectedNote?.id === id) setSelectedNote(updated);
     return updated;
   };
 
-  // Sincroniza selectedNote y la lista de notas tras agregar/quitar categoría
+  // Sincroniza selectedNote y la lista de notas tras agregar/quitar categoría (optimista, sin getById extra)
   const handleAddCategory = async (noteId: string, categoryId: string) => {
-    await addCategoryToNote(noteId, categoryId);
-    // Una sola llamada para sincronizar el NoteCard y el editor
-    const updated = await notesApi.getById(noteId);
-    updateNoteInList(updated);
-    if (selectedNote?.id === noteId) setSelectedNote(updated);
+    const category = categories.find((c) => c.id === categoryId);
+    if (!category) {
+      await addCategoryToNote(noteId, categoryId);
+      return;
+    }
+
+    const newNoteCategory = buildNoteCategory(noteId, category);
+
+    // Optimista: agregar categoría a la nota en la lista y en selectedNote
+    const addCategoryToNoteObj = (note: Note): Note => {
+      const noteCats = note.note_categories ?? [];
+      if (noteCats.some((nc) => nc.categoryId === categoryId)) return note;
+      return { ...note, note_categories: [...noteCats, newNoteCategory] };
+    };
+
+    updateNoteInList(noteId, addCategoryToNoteObj);
+    if (selectedNote?.id === noteId) setSelectedNote(addCategoryToNoteObj(selectedNote));
+
+    try {
+      await addCategoryToNote(noteId, categoryId);
+    } catch {
+      // Rollback: remover la categoría de la nota
+      const rollbackRemove = (note: Note): Note => ({
+        ...note,
+        note_categories: note.note_categories?.filter((nc) => nc.categoryId !== categoryId) ?? [],
+      });
+      updateNoteInList(noteId, rollbackRemove);
+      if (selectedNote?.id === noteId) setSelectedNote(rollbackRemove(selectedNote));
+      throw new Error("Error al agregar la categoría.");
+    }
   };
 
   const handleRemoveCategory = async (noteId: string, categoryId: string) => {
-    await removeCategoryFromNote(noteId, categoryId);
-    const updated = await notesApi.getById(noteId);
-    updateNoteInList(updated);
-    if (selectedNote?.id === noteId) setSelectedNote(updated);
+    // Optimista: remover categoría de la nota en la lista y en selectedNote
+    const applyRemove = (note: Note): Note => ({
+      ...note,
+      note_categories: note.note_categories?.filter((nc) => nc.categoryId !== categoryId) ?? [],
+    });
+
+    updateNoteInList(noteId, applyRemove);
+    if (selectedNote?.id === noteId) setSelectedNote(applyRemove(selectedNote));
+
+    try {
+      await removeCategoryFromNote(noteId, categoryId);
+    } catch {
+      // Rollback: restaurar la categoría (necesitamos los datos de la categoría)
+      const category = categories.find((c) => c.id === categoryId);
+      if (category) {
+        const newNoteCategory = buildNoteCategory(noteId, category);
+        const rollbackAdd = (note: Note): Note => {
+          const noteCats = note.note_categories ?? [];
+          if (noteCats.some((nc) => nc.categoryId === categoryId)) return note;
+          return { ...note, note_categories: [...noteCats, newNoteCategory] };
+        };
+        updateNoteInList(noteId, rollbackAdd);
+        if (selectedNote?.id === noteId) setSelectedNote(rollbackAdd(selectedNote));
+      }
+      throw new Error("Error al quitar la categoría.");
+    }
   };
 
   return (
@@ -146,5 +205,3 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     </AppContext.Provider>
   );
 };
-
-

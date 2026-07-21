@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type {
   Note,
   CreateNotePayload,
@@ -18,6 +18,12 @@ export const useNotes = (filter: Filter = "active") => {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Ref para acceder al estado más reciente en callbacks asíncronos (rollback)
+  const notesRef = useRef(notes);
+  useEffect(() => {
+    notesRef.current = notes;
+  }, [notes]);
 
   const fetchPage = useCallback(
     async (opts: PageOptions & { page: number }, append: boolean) => {
@@ -60,38 +66,104 @@ export const useNotes = (filter: Filter = "active") => {
   const hasMore = !!meta && meta.page < meta.totalPages;
 
   const createNote = async (payload: CreateNotePayload): Promise<Note> => {
-    const newNote = await notesApi.create(payload);
-    // Agrega la nueva nota al inicio de la lista sin recargar todo
-    setNotes((prev) => [newNote, ...prev]);
+    const tempId = `temp_${Date.now()}`;
+    const tempNote: Note = {
+      id: tempId,
+      title: payload.title,
+      content: payload.content,
+      isArchived: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      note_categories: [],
+    };
+
+    // Optimista: agregar inmediatamente
+    setNotes((prev) => [tempNote, ...prev]);
     setMeta((prev) =>
       prev ? { ...prev, total: prev.total + 1 } : prev,
     );
-    return newNote;
+
+    try {
+      const newNote = await notesApi.create(payload);
+      // Reemplazar la nota temporal con la real
+      setNotes((prev) => prev.map((n) => (n.id === tempId ? newNote : n)));
+      return newNote;
+    } catch {
+      // Rollback: remover la nota temporal
+      setNotes((prev) => prev.filter((n) => n.id !== tempId));
+      setMeta((prev) =>
+        prev ? { ...prev, total: prev.total - 1 } : prev,
+      );
+      throw new Error("Error al crear la nota.");
+    }
   };
 
   const updateNote = async (id: string, payload: UpdateNotePayload): Promise<Note> => {
-    // El backend ya retorna la nota completa con note_categories
-    const updated = await notesApi.update(id, payload);
-    setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
-    return updated;
+    const prevNote = notesRef.current.find((n) => n.id === id);
+
+    // Optimista: actualizar inmediatamente
+    setNotes((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, ...payload } : n)),
+    );
+
+    try {
+      const updated = await notesApi.update(id, payload);
+      setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+      return updated;
+    } catch {
+      // Rollback: restaurar la nota anterior
+      if (prevNote) {
+        setNotes((prev) => prev.map((n) => (n.id === id ? prevNote : n)));
+      }
+      throw new Error("Error al actualizar la nota.");
+    }
   };
 
   const deleteNote = async (id: string) => {
-    await notesApi.delete(id);
+    const prevNotes = notesRef.current;
+
+    // Optimista: remover inmediatamente
     setNotes((prev) => prev.filter((n) => n.id !== id));
-    setMeta((prev) => (prev ? { ...prev, total: prev.total - 1 } : prev));
+    setMeta((prev) =>
+      prev ? { ...prev, total: prev.total - 1 } : prev,
+    );
+
+    try {
+      await notesApi.delete(id);
+    } catch {
+      // Rollback: restaurar notas anteriores
+      setNotes(prevNotes);
+      setMeta((prev) =>
+        prev ? { ...prev, total: prev.total + 1 } : prev,
+      );
+      throw new Error("Error al eliminar la nota.");
+    }
   };
 
   const setArchiveStatus = async (id: string, isArchived: boolean) => {
-    await notesApi.setArchiveStatus(id, { isArchived });
-    // Si el filtro es 'active' o 'archived', la nota desaparece de la lista actual
+    const prevNotes = notesRef.current;
+
+    // Optimista: remover de la lista inmediatamente
     setNotes((prev) => prev.filter((n) => n.id !== id));
-    setMeta((prev) => (prev ? { ...prev, total: prev.total - 1 } : prev));
+    setMeta((prev) =>
+      prev ? { ...prev, total: prev.total - 1 } : prev,
+    );
+
+    try {
+      await notesApi.setArchiveStatus(id, { isArchived });
+    } catch {
+      // Rollback: restaurar notas anteriores
+      setNotes(prevNotes);
+      setMeta((prev) =>
+        prev ? { ...prev, total: prev.total + 1 } : prev,
+      );
+      throw new Error("Error al cambiar el estado de la nota.");
+    }
   };
 
   // Actualiza una única nota en la lista sin recargar todo (útil para actualizaciones optimistas)
-  const updateNoteInList = (updated: Note) => {
-    setNotes((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
+  const updateNoteInList = (id: string, updater: (note: Note) => Note) => {
+    setNotes((prev) => prev.map((n) => (n.id === id ? updater(n) : n)));
   };
 
   return {

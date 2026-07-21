@@ -1,6 +1,7 @@
 ﻿import React from "react";
 import type { Note, PageMeta } from "../../types/note.types";
 import { NoteCard } from "./NoteCard";
+import { NoteCardSkeleton } from "./NoteCardSkeleton";
 import { EmptyState } from "../ui/EmptyState";
 import { Pagination } from "./Pagination";
 
@@ -27,11 +28,13 @@ export const NoteList: React.FC<NoteListProps> = ({
   onLoadMore,
   onNewNote,
 }) => {
-  // Estado de carga
+  // Estado de carga: mostrar skeletons en lugar de spinner
   if (loading) {
     return (
-      <div className="flex items-center justify-center flex-1 py-20">
-        <div className="w-8 h-8 border-2 border-(--border-focus) border-t-transparent rounded-full animate-spin" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 p-8">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <NoteCardSkeleton key={i} />
+        ))}
       </div>
     );
   }
