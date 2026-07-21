@@ -1,15 +1,17 @@
-name: Keep Supabase awake
+name: Keep services awake
 
-# Evita que el proyecto free de Supabase se pause por inactividad (7 días sin consultas).
-# No hace falta una consulta "pesada": cualquier query cuenta como actividad.
 on:
   schedule:
-    # Todos los lunes a las 04:17 UTC (hora poco común para no colisionar con otros crons).
+    # Keep Supabase DB awake (weekly)
     - cron: "17 4 * * 1"
+    # Keep Render backend warm (every 10 minutes)
+    - cron: "*/10 * * * *"
   workflow_dispatch: {}
 
 jobs:
-  ping:
+  # 1) Supabase keep-alive (weekly)
+  supabase-keep-alive:
+    if: github.event_name == 'schedule' && github.event.schedule == '17 4 * * 1'
     runs-on: ubuntu-latest
     steps:
       - name: Install postgresql-client
@@ -19,3 +21,15 @@ jobs:
         env:
           SUPABASE_DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
         run: psql "$SUPABASE_DIRECT_URL" -c "SELECT 1 AS keep_alive;"
+
+  # 2) Render backend keep-alive (every 10 min)
+  render-keep-alive:
+    if: github.event_name == 'schedule' && github.event.schedule == '*/10 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend healthcheck
+        run: |
+          curl -fsS --max-time 30 \
+            "https://notizen-4bfu.onrender.com/api/health" \
+            -H "Accept: application/json" \
+            -w "\nHTTP %{http_code} in %{time_total}s\n"
